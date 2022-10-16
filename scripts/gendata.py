@@ -63,10 +63,11 @@ def generate_ub_linslab_data_diffmargin_v2(N_tr, dim, eff_lin_margins, eff_slab_
                                            slabs_per_coord, slab_p_vals, corrupt_lin=0., corrupt_slab=0.,
                                            corrupt_slab7=0., scale_noise=True, width=10., lin_coord=0, lin_shift=0.,
                                            slab_shift=0., indep_slabs=True, bs=256, pm=True, nw=0, N_te=10000,
-                                           random_transform=False, corrupt_lin_margin=False, corrupt_5slab_margin=False):
+                                           random_transform=False, corrupt_lin_margin=False, corrupt_5slab_margin=False, num_gauss=0):
     get_unif = lambda a: np.random.uniform(size=a)
     get_bool = lambda a: np.random.choice([0,1], size=a)
     get_sign = lambda a: 2*get_bool(a)-1.
+    get_gauss = lambda a: np.random.normal(size=a)
 
     def get_slab_width(NS, B, SM):
         if NS==3: return (2.*B-4.*SM)/3.
@@ -76,7 +77,7 @@ def generate_ub_linslab_data_diffmargin_v2(N_tr, dim, eff_lin_margins, eff_slab_
 
     num_lin, num_slabs = map(len, [eff_lin_margins, eff_slab_margins])
     assert 0 <= corrupt_lin <= 1, "input is probability"
-    assert num_lin + num_slabs <= dim, "dim constraint, num_lin: {}, num_slabs: {}, dim: {}".format(num_lin, num_slabs, dim)
+    assert num_lin + num_slabs + num_gauss <= dim, "dim constraint, num_lin: {}, num_slabs: {}, num_gauss: {}, dim: {}".format(num_lin, num_slabs, num_gauss, dim)
     for elm in eff_lin_margins: assert 0 < elm < 1, "equal range constraint (0 < eff_lin_margin={} < 1)".format(elm)
     for esm in eff_slab_margins: assert 0 < esm < 1, "equal range constraint (0 < eff_slab_margin={} < 0.25)".format(esm)
 
@@ -244,11 +245,20 @@ def generate_ub_linslab_data_diffmargin_v2(N_tr, dim, eff_lin_margins, eff_slab_
 
         # shift
         X[:, coord] += slab_shift*width
-
+    
+    
+    # Gaussian noise coordinates
+    start = (num_lin)*int(not no_linear)+num_slabs
+    end = start + num_gauss # == dim
+    for coord in range(start, end):
+        X[:, coord] = np.random.normal(size=N, scale=1.0)
+        
+    
     # reshuffle
     P = np.random.permutation(N)
     X, Y = X[P,:], Y[P]
 
+    # how do you do this if you shuffled it??
     # lin coord position
     if not random_transform and lin_coord != 0:
         X[:, [0, lin_coord]] = X[:, [lin_coord, 0]]
@@ -266,7 +276,7 @@ def generate_ub_linslab_data_v2(N_tr, dim, eff_lin_margin, eff_slab_margin=None,
                                 scale_noise=True, num_lin=1, lin_shift=0., slab_shift=0., random_transform=False,
                                 num_slabs=1, slabs_per_coord=5, width=10., indep_slabs=True, no_linear=False,
                                 bs=256, pm=True, nw=0, N_te=10000, corrupt_lin_margin=False, slab5_pval=3/4.,
-                                slab3_pval=1/2., slab7_pval=7/8., corrupt_5slab_margin=False):
+                                slab3_pval=1/2., slab7_pval=7/8., corrupt_5slab_margin=False, num_gauss=0):
     slab_p_map = {5: slab5_pval, 7: slab7_pval, 3: slab3_pval}
     slabs_per_coord = [slabs_per_coord]*num_slabs if type(slabs_per_coord) is int else slabs_per_coord[:]
     for x in slabs_per_coord: assert x in slab_p_map
@@ -274,9 +284,9 @@ def generate_ub_linslab_data_v2(N_tr, dim, eff_lin_margin, eff_slab_margin=None,
     lms = [eff_lin_margin]*num_lin
     sms = eff_slab_margin if type(eff_slab_margin) is list else [eff_slab_margin]*num_slabs
     return generate_ub_linslab_data_diffmargin_v2(N_tr, dim, lms, sms, slabs_per_coord, slab_p_vals, lin_coord=lin_coord, corrupt_slab=corrupt_slab,
-                                                  corrupt_slab7=corrupt_slab7, corrupt_lin=corrupt_lin, scale_noise=scale_noise, width=width,
-                                                  lin_shift=lin_shift, slab_shift=slab_shift, random_transform=random_transform, indep_slabs=indep_slabs,
-                                                  pm=pm, bs=bs, corrupt_lin_margin=corrupt_lin_margin, nw=nw, N_te=N_te, corrupt_5slab_margin=corrupt_5slab_margin)
+    corrupt_slab7=corrupt_slab7, corrupt_lin=corrupt_lin, scale_noise=scale_noise, width=width,
+    lin_shift=lin_shift, slab_shift=slab_shift, random_transform=random_transform, indep_slabs=indep_slabs,
+    pm=pm, bs=bs, corrupt_lin_margin=corrupt_lin_margin, nw=nw, N_te=N_te, corrupt_5slab_margin=corrupt_5slab_margin, num_gauss=num_gauss)
 
 
 def get_lms_data(**kw):
